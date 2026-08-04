@@ -74,7 +74,7 @@ Auto-populated from incoming event data (override tables for everything):
 
 - **Don't send Whop checkout purchases.** Whop records those server-side automatically; only send events Whop cannot see (leads, bookings, purchases on your own infrastructure). This is [Whop's own guidance](https://docs.whop.com/developer/guides/pixel).
 - **Pixel vs. server dedupe is undocumented.** The pixel generates its own event IDs, so the same action tracked in both containers can double-count. Split by event type: pixel for page views, server tag for conversions.
-- **Custom event names**: max 35 characters; names under ~34 characters forward to Meta as custom conversions. Keep them short, stable, and few.
+- **Custom event names**: max 35 characters; names under ~34 characters forward to Meta as custom conversions. Keep them short and stable, and reuse a small set.
 - **`_wuid` stitching** requires the sGTM container on a subdomain of the site (standard first-party setup) so the pixel's cookie reaches it.
 - The Events API is part of Whop's beta/experimental API surface and may change.
 
