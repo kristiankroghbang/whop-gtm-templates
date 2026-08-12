@@ -26,8 +26,7 @@ ___INFO___
   "categories": [
     "CONVERSIONS",
     "ANALYTICS"
-  ],
-  "termsOfServiceAccepted": true
+  ]
 }
 
 ___TEMPLATE_PARAMETERS___
