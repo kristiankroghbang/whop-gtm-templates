@@ -66,7 +66,7 @@ ___TEMPLATE_PARAMETERS___
       {
         "value": "inherit",
         "displayValue": "Inherit from incoming event",
-        "help": "Uses the incoming event name. GA4 names are auto-mapped to Whop standard events (page_view/view_item → view_content, generate_lead → lead, sign_up → complete_registration, add_to_cart → add_to_cart). Names matching a Whop standard event pass through unchanged. Anything else is sent as a custom event under its own name (e.g. purchase arrives in Whop as a custom event named purchase). Keep custom names short and stable - names under ~34 characters forward to Meta as custom conversions."
+        "help": "Uses the incoming event name. GA4 names are auto-mapped to Whop standard events (page_view/view_item → view_content, generate_lead → lead, sign_up → complete_registration, add_to_cart → add_to_cart). Names matching a Whop standard event pass through unchanged. Anything else is sent as a custom event under its own name. Keep custom names short and stable - names under ~34 characters forward to Meta as custom conversions. Never reuse a name Whop reserves for its own conversion types (purchase, lead, schedule, submit_application, contact, complete_registration, view_content, add_to_cart, custom and messaging_conversation). In particular, do not send purchase: Whop generates that event itself from payment data and forwards it to Meta as the event your ads optimize toward, so your own purchase lands beside it as a separate custom event with a near-identical name. Whop support confirms this and asks for a clearly different name, such as order_completed."
       },
       {
         "value": "standard",
@@ -132,7 +132,7 @@ ___TEMPLATE_PARAMETERS___
     "checkboxText": "Read browser cookies (_fbp, _fbc, _ttp, _ga, _wuid)",
     "simpleValueType": true,
     "defaultValue": true,
-    "help": "Populates context.fbp, context.fbc, context.ttp, context.ga, gclid (from _gcl_aw) and user.anonymous_id (the Whop pixel's _wuid visitor cookie, falling back to the GA4 client_id) from the incoming request cookies when not present in event data. Cookies forwarded by the Stape Data Tag inside common_cookie are always read, regardless of this setting."
+    "help": "Populates context.fbp, context.fbc, context.ttp, context.ga, gclid (from _gcl_aw) and user.anonymous_id (the Whop pixel's _wuid visitor cookie, falling back to the GA4 client_id) from the incoming request cookies when not present in event data. Cookies forwarded by the Stape Data Tag inside common_cookie - including _wuid - are always read, regardless of this setting."
   },
   {
     "type": "CHECKBOX",
@@ -152,7 +152,7 @@ ___TEMPLATE_PARAMETERS___
         "type": "SIMPLE_TABLE",
         "name": "eventDataList",
         "displayName": "Event Parameters",
-        "help": "Overrides or adds top-level event fields. Table values win over auto-detected values. Whop only requires account_id and event_name (set above) - everything here is optional. Recommended: event_id for deduplication (use the same ID as the browser pixel so duplicate events are dropped), and value + currency on conversion events.",
+        "help": "Overrides or adds top-level event fields. Table values win over auto-detected values. Whop only requires account_id and event_name (set above) - everything here is optional. Recommended: event_id for deduplication and value + currency on conversion events. Whop counts each event_name and event_id pair once, so send the same event_id the browser pixel sends for that same conversion and it lands as one event. The pair is the key: the same ID under two different event names does not deduplicate.",
         "simpleTableColumns": [
           {
             "defaultValue": "",
@@ -568,9 +568,19 @@ setIf(user, 'state', firstOf([ud.state, ud.region, addr.region]));
 setIf(user, 'postal_code', firstOf([ud.postal_code, addr.postal_code]));
 setIf(user, 'country', firstOf([ud.country, addr.country]));
 setIf(user, 'external_id', eventData.user_id);
+// Stape Data Tag forwards browser cookies nested under common_cookie
+var commonCookie = eventData.common_cookie || {};
+
 // _wuid is the Whop browser pixel's own visitor ID - the strongest anonymous identifier.
 // GA4 client_id is only a fallback when the pixel cookie is unavailable.
-var wuid = firstOf([eventData._wuid, data.readCookies ? getCookieValues('_wuid')[0] : undefined, data.readCookies ? getCookieValues('_wuid_link')[0] : undefined]);
+var wuid = firstOf([
+  eventData._wuid,
+  commonCookie._wuid,
+  eventData._wuid_link,
+  commonCookie._wuid_link,
+  data.readCookies ? getCookieValues('_wuid')[0] : undefined,
+  data.readCookies ? getCookieValues('_wuid_link')[0] : undefined
+]);
 setIf(user, 'anonymous_id', firstOf([wuid, eventData.client_id]));
 
 var context = {};
@@ -584,9 +594,6 @@ if (isPresent(eventData.page_location)) {
   var parsedUrl = parseUrl(eventData.page_location);
   if (parsedUrl && parsedUrl.searchParams) query = parsedUrl.searchParams;
 }
-
-// Stape Data Tag forwards browser cookies nested under common_cookie
-var commonCookie = eventData.common_cookie || {};
 
 var CLICK_ID_KEYS = ['gclid', 'gbraid', 'wbraid', 'fbclid', 'ttclid', 'msclkid', 'li_fat_id', 'rdt_cid', 'sccid', 'twclid'];
 for (var c = 0; c < CLICK_ID_KEYS.length; c++) {

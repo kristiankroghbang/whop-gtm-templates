@@ -14,7 +14,7 @@ ___INFO___
   "version": 1,
   "securityGroups": [],
   "displayName": "Whop Pixel",
-  "description": "Loads the Whop pixel (t.whop.tw/s.js) and tracks page views, standard and custom events with optional value, currency and customer data. Developed by Kristian Krogh Bang.",
+  "description": "Loads the Whop pixel (t.whop.tw/s.js) and tracks page views, standard and custom events with optional event ID for deduplication, value, currency and customer data. Developed by Kristian Krogh Bang.",
   "containerContexts": [
     "WEB"
   ],
@@ -108,11 +108,18 @@ ___TEMPLATE_PARAMETERS___
             "name": "customEventName",
             "displayName": "Custom Event Name",
             "simpleValueType": true,
-            "help": "Keep names short, stable and reused from a small set - names under ~34 characters forward to Meta as custom conversions. Do not track purchases, subscriptions or trials that happen on Whop checkout; Whop records those server-side automatically."
+            "help": "Keep names short, stable and reused from a small set - names under ~34 characters forward to Meta as custom conversions. Do not track purchases, subscriptions or trials that happen on Whop checkout; Whop records those server-side automatically. Never reuse a name Whop reserves for its own conversion types (purchase, lead, schedule, submit_application, contact, complete_registration, view_content, add_to_cart, custom and messaging_conversation). Sending purchase creates a second, confusable event next to the one Whop generates from payment data - use a clearly different name such as order_completed."
           }
         ]
       }
     ]
+  },
+  {
+    "type": "TEXT",
+    "name": "eventId",
+    "displayName": "Event ID",
+    "simpleValueType": true,
+    "help": "Optional but strongly recommended on conversions. Whop counts each event_name and event_id pair once, so a retry, a page refresh, or the same conversion also sent from your server collapses into one event. Use an ID your own system already has for that single action - an order number, lead ID or form submission ID - and send the exact same value from the server tag. A value generated at fire time is new every time and stops nothing. Leave it empty and Whop assigns an ID that is new on every request, so nothing can be deduplicated."
   },
   {
     "type": "TEXT",
@@ -279,6 +286,12 @@ if (!isPresent(eventName)) {
 
 var params = {};
 var hasParams = false;
+// event_id is what lets Whop collapse the same conversion arriving from the
+// browser and the server into one event - it dedupes on the name and ID pair.
+if (isPresent(data.eventId)) {
+  params.event_id = makeString(data.eventId);
+  hasParams = true;
+}
 if (isPresent(data.eventValue)) {
   params.value = makeNumber(data.eventValue);
   hasParams = true;
