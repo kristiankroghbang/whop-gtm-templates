@@ -37,7 +37,7 @@ ___TEMPLATE_PARAMETERS___
     "name": "accountIds",
     "displayName": "Business ID(s)",
     "simpleValueType": true,
-    "help": "Your Whop business ID (biz_...), found in your dashboard URL. Separate multiple IDs with commas to track several businesses.",
+    "help": "Your Whop business ID (biz_...), found in your dashboard URL. Separate multiple IDs with commas to track several businesses - up to 10 per tag. Whop fans the event out to each business itself, so the event ID still deduplicates correctly.",
     "valueValidators": [
       {
         "type": "NON_EMPTY"
@@ -319,13 +319,31 @@ addRows(data.additionalParamsList);
 var alreadyLoaded = copyFromWindow('_whop_gtm_loaded');
 
 if (alreadyLoaded) {
+  // The sandbox has no spread, so setScope is called with an explicit argument
+  // count. Whop documents no maximum; 10 is this template's own ceiling.
   if (scopes.length === 1) {
     callInWindow('whop.setScope', scopes[0]);
   } else if (scopes.length === 2) {
     callInWindow('whop.setScope', scopes[0], scopes[1]);
-  } else {
+  } else if (scopes.length === 3) {
     callInWindow('whop.setScope', scopes[0], scopes[1], scopes[2]);
-    if (isDebug && scopes.length > 3) logToConsole('Whop Pixel: max 3 business IDs supported per tag, extra IDs ignored');
+  } else if (scopes.length === 4) {
+    callInWindow('whop.setScope', scopes[0], scopes[1], scopes[2], scopes[3]);
+  } else if (scopes.length === 5) {
+    callInWindow('whop.setScope', scopes[0], scopes[1], scopes[2], scopes[3], scopes[4]);
+  } else if (scopes.length === 6) {
+    callInWindow('whop.setScope', scopes[0], scopes[1], scopes[2], scopes[3], scopes[4], scopes[5]);
+  } else if (scopes.length === 7) {
+    callInWindow('whop.setScope', scopes[0], scopes[1], scopes[2], scopes[3], scopes[4], scopes[5], scopes[6]);
+  } else if (scopes.length === 8) {
+    callInWindow('whop.setScope', scopes[0], scopes[1], scopes[2], scopes[3], scopes[4], scopes[5], scopes[6], scopes[7]);
+  } else if (scopes.length === 9) {
+    callInWindow('whop.setScope', scopes[0], scopes[1], scopes[2], scopes[3], scopes[4], scopes[5], scopes[6], scopes[7], scopes[8]);
+  } else if (scopes.length === 10) {
+    callInWindow('whop.setScope', scopes[0], scopes[1], scopes[2], scopes[3], scopes[4], scopes[5], scopes[6], scopes[7], scopes[8], scopes[9]);
+  } else {
+    callInWindow('whop.setScope', scopes[0], scopes[1], scopes[2], scopes[3], scopes[4], scopes[5], scopes[6], scopes[7], scopes[8], scopes[9]);
+    if (isDebug) logToConsole('Whop Pixel: max 10 business IDs supported per tag, extra IDs ignored');
   }
   if (hasParams) {
     callInWindow('whop.track', eventName, params);

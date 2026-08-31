@@ -57,6 +57,28 @@ ___TEMPLATE_PARAMETERS___
     ]
   },
   {
+    "type": "SIMPLE_TABLE",
+    "name": "additionalAccounts",
+    "displayName": "Additional Accounts",
+    "help": "Optional. Sends the same event to more Whop businesses, one request per account. Leave API Key empty to reuse the key above - only do that if that key is authorized for the account. Each account is sent independently, so one rejection does not stop the others.",
+    "newRowButtonText": "Add account",
+    "simpleTableColumns": [
+      {
+        "defaultValue": "",
+        "displayName": "Account ID",
+        "name": "accountId",
+        "type": "TEXT",
+        "isUnique": true
+      },
+      {
+        "defaultValue": "",
+        "displayName": "API Key",
+        "name": "apiKey",
+        "type": "TEXT"
+      }
+    ]
+  },
+  {
     "type": "RADIO",
     "name": "eventNameSetting",
     "displayName": "Event Name",
@@ -668,27 +690,60 @@ if (hasContext) body.context = context;
 
 var endpoint = data.useSandbox ? 'https://sandbox-api.whop.com/api/v1/events' : 'https://api.whop.com/api/v1/events';
 
-var headers = {
-  'Content-Type': 'application/json',
-  Authorization: 'Bearer ' + data.apiKey
-};
-if (isPresent(body.event_id)) headers['Idempotency-Key'] = makeString(body.event_id);
-
-if (isDebug) logToConsole('Whop Events API request', endpoint, JSON.stringify(body));
-
-sendHttpRequest(
-  endpoint,
-  function (statusCode, respHeaders, respBody) {
-    if (isDebug) logToConsole('Whop Events API response', statusCode, respBody);
-    if (statusCode >= 200 && statusCode < 300) {
-      data.gtmOnSuccess();
-    } else {
-      data.gtmOnFailure();
+var targets = [{ accountId: data.accountId, apiKey: data.apiKey }];
+if (data.additionalAccounts) {
+  for (var a = 0; a < data.additionalAccounts.length; a++) {
+    var extra = data.additionalAccounts[a];
+    if (isPresent(extra.accountId)) {
+      targets.push({
+        accountId: extra.accountId,
+        apiKey: isPresent(extra.apiKey) ? extra.apiKey : data.apiKey
+      });
     }
-  },
-  { headers: headers, method: 'POST', timeout: 5000 },
-  JSON.stringify(body)
-);
+  }
+}
+
+var pending = targets.length;
+var anyFailed = false;
+
+function settle(accountId, ok, statusCode, respBody) {
+  if (!ok) {
+    anyFailed = true;
+    logToConsole('Whop Events API failed for', accountId, statusCode, respBody);
+  } else if (isDebug) {
+    logToConsole('Whop Events API response', accountId, statusCode, respBody);
+  }
+  pending--;
+  if (pending > 0) return;
+  if (anyFailed) {
+    data.gtmOnFailure();
+  } else {
+    data.gtmOnSuccess();
+  }
+}
+
+function send(target) {
+  body.account_id = target.accountId;
+  // Serialized here, synchronously, so the next iteration's account_id cannot leak in.
+  var payload = JSON.stringify(body);
+  var headers = {
+    'Content-Type': 'application/json',
+    Authorization: 'Bearer ' + target.apiKey
+  };
+  if (isDebug) logToConsole('Whop Events API request', endpoint, payload);
+  sendHttpRequest(
+    endpoint,
+    function (statusCode, respHeaders, respBody) {
+      settle(target.accountId, statusCode >= 200 && statusCode < 300, statusCode, respBody);
+    },
+    { headers: headers, method: 'POST', timeout: 5000 },
+    payload
+  );
+}
+
+for (var t = 0; t < targets.length; t++) {
+  send(targets[t]);
+}
 
 
 ___SERVER_PERMISSIONS___
