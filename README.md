@@ -67,7 +67,7 @@ Auto-populated from incoming event data (override tables for everything):
 1. Create a Whop API key with the `event:create` scope in your Whop dashboard
 2. In your GTM Server Container: **Templates** > **Tag Templates** > **New** > three-dot menu > **Import** > `whop-events-api-tag.tpl`
 3. Create a tag: set **API Key** and **Account ID** (your `biz_...` ID). To send the same event to more businesses, add them under **Additional Accounts** - one request goes out per account, and an account row can carry its own API key or reuse the one above
-4. Leave Event Name on **Inherit** and fire the tag on your conversion triggers (lead, sign_up, purchase, ...)
+4. Leave Event Name on **Inherit** and fire the tag on your conversion triggers (lead, sign_up, order_completed, ...) - conversion triggers only, see [Don't send page views from the server](#dont-send-page-views-from-the-server)
 5. Pass a stable event ID from the browser (e.g. a Stape unique event ID variable) so retries deduplicate - see [Deduplication](#deduplication)
 
 ## Deduplication
@@ -81,6 +81,16 @@ Three rules follow from the key being the pair, not the ID alone:
 - **Omitting it means no deduplication at all.** Whop assigns an ID that is new on every request, so repeat sends of the same action can never be matched.
 
 A value generated at fire time is new on every fire and stops nothing.
+
+## Don't send page views from the server
+
+Fire the server tag on conversion triggers only.
+
+An incoming GA4 `page_view` is mapped to Whop's `view_content`, which is not a neutral label: it is one of Whop's standard conversion events and can be selected as an ad optimization goal. Firing the server tag on every page view inflates it until the number is worthless, and anyone who later optimizes toward `view_content` is optimizing toward traffic.
+
+Event IDs do not save you here either. The browser tag sends a page view as `page` and the server tag sends it as `view_content`, so the two are different `event_name` and `event_id` pairs and are counted separately no matter what ID you send. Deduplication only ever applies when both sides use the same event name.
+
+Page views belong in the browser pixel. The server tag is for the conversions ad blockers would otherwise cost you.
 
 ## Limitations
 
